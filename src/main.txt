@@ -1,0 +1,97 @@
+// use std::io::{self, Write};
+// use nix::unistd;
+use crossterm::{
+    event::{poll, read, Event::*, KeyCode, KeyModifiers},
+    execute,
+    style::Print,
+    terminal,
+    terminal::{size, ScrollUp, SetSize},
+//     ExecutableCommand,
+};
+
+
+use std::io::{stderr, stdout, Write};
+use std::process;
+use std::time::Duration;
+
+fn die(s: &str) {
+    eprintln!("Error: {}", s);
+    stderr().flush().unwrap();
+    process::exit(1);
+}
+
+// fn editor_refresh_screen() -> Result<(), std::io::Error> {
+//     stdout().execute(Clear(ClearType::All))?;
+//     editor_draw_rows();
+//     Ok(())
+// }
+
+struct Editor {
+    rows: u16,
+    cols: u16,
+}
+
+impl Editor {
+    fn new() -> Result<()> {
+        let (cols, rows) = terminal::size()?;
+        Ok(Self {rows, cols})
+    }
+
+    fn refresh_screen() {
+        print!("\x1b[2J");
+        self.draw_rows();
+        stdout().flush().unwrap();
+    }
+
+    fn draw_rows() {
+        for _ in 0..self.rows {
+            println!("~");
+        }
+        stdout().flush().unwrap();
+    }
+}
+
+
+fn main() -> std::io::Result<()> {
+    let mut _count = 0;
+
+    terminal::enable_raw_mode()?;
+
+    let (cols, rows) = size()?;
+
+    execute!(stdout(), SetSize(10, 10), ScrollUp(5))?;
+
+    execute!(stdout(), SetSize(cols, rows))?;
+    // Be a good citizen, cleanup
+    execute!(stdout(), Print("Styled text here. \n"),)?;
+
+
+    loop {
+        _count += 1;
+        if let Ok(true) = poll(Duration::from_millis(100)) {
+            if let Ok(event) = read() {
+                if let Key(key_event) = event {
+                    if (key_event.code == KeyCode::Char('q'))
+                        && (key_event.modifiers == KeyModifiers::CONTROL)
+                    {
+                        break;
+                    }
+                    if (key_event.code == KeyCode::Char('r'))
+                        && (key_event.modifiers == KeyModifiers::CONTROL)
+                    {
+                        Editor::refresh_screen();
+                    } else {
+                        println!("{:?}\r", key_event);
+                    }
+                }
+            } else {
+                die("error");
+                break;
+            }
+        }
+    }
+
+    terminal::disable_raw_mode()?;
+
+    Ok(())
+}
