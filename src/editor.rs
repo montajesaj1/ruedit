@@ -8,11 +8,15 @@ pub struct Position {
     pub y: usize,
 }
 
+// pub struct CursorState {
+//     pub style:
+// }
 
 pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
     cursor_position: Position,
+    // cursor_state:
 }
 
 impl Editor {
@@ -39,7 +43,7 @@ impl Editor {
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::cursor_hide();
-        Terminal::cursor_position(&Position {x: 0, y: 0});
+        Terminal::cursor_position(&Position { x: 0, y: 0 });
         if self.should_quit {
             Terminal::clear_screen();
             println!("Goodbye.\r");
@@ -55,34 +59,61 @@ impl Editor {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
-            Key::Up | Key::Down | Key::Left | Key::Right => self.move_cursor(pressed_key),
+            Key::Up
+            | Key::Down
+            | Key::Left
+            | Key::Right
+            | Key::PageUp
+            | Key::PageDown
+            | Key::End
+            | Key::Home => self.move_cursor(pressed_key),
             _ => (),
         }
         Ok(())
     }
-
     fn move_cursor(&mut self, key: Key) {
         let Position { mut y, mut x } = self.cursor_position;
+        let size = self.terminal.size();
+        let height = size.height.saturating_sub(1) as usize;
+        let width = size.width.saturating_sub(1) as usize;
         match key {
             Key::Up => y = y.saturating_sub(1),
-            Key::Down => y = y.saturating_add(1),
+            Key::Down => {
+                if y < height {
+                    y = y.saturating_add(1);
+                }
+            }
             Key::Left => x = x.saturating_sub(1),
-            Key::Right => x = x.saturating_add(1),
+            Key::Right => {
+                if x < width {
+                    x = x.saturating_add(1);
+                }
+            }
+            Key::PageUp => y = 0,
+            Key::PageDown => y = height,
+            Key::Home => x = 0,
+            Key::End => x = width,
             _ => (),
         }
         self.cursor_position = Position { x, y }
     }
 
     fn draw_welcome_message(&self) {
-        let mut welcome_message = format!("Ruedit editor -- V.{}\r", VERSION);
+        let mut welcome_message = format!("Ruedit 🫶  {}", VERSION);
+        let signature = format!("By AJ Montajes");
         let width = self.terminal.size().width as usize;
         let len = welcome_message.len();
         let padding = width.saturating_sub(len) / 2;
         let spaces = " ".repeat(padding.saturating_sub(1));
+
+        let len_version = signature.len();
+        let _padding_version = width.saturating_sub(len_version);
+        let spaces_version = " ".repeat(padding.saturating_sub(1));
+
         welcome_message = format!("~{}{}", spaces, welcome_message);
         welcome_message.truncate(width);
-        println!("{}\r", welcome_message)
-
+        println!("{}\r", welcome_message);
+        println!("~{}{}\r" , spaces_version, signature);
     }
 
     fn draw_rows(&self) {
